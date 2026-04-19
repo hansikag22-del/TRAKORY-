@@ -1,0 +1,16 @@
+{% extends 'tracker/base.html' %}
+{% block title %}Delete — TRAKORY{% endblock %}
+{% block content %}
+<div style="max-width:420px;margin:4rem auto;padding:0 1rem;">
+  <div style="background:var(--card-bg);border:1px solid #5a2a2a;border-radius:16px;padding:2rem;text-align:center;">
+    <div style="font-size:2.5rem;margin-bottom:1rem;">🗑️</div>
+    <h2 style="font-family:'Syne',sans-serif;margin-bottom:0.5rem;">Delete Item?</h2>
+    <p style="color:var(--muted);margin-bottom:1.5rem;">Are you sure you want to delete <strong style="color:var(--text);">{{ item.title }}</strong>? This cannot be undone.</p>
+    <form method="POST" style="display:flex;gap:0.8rem;justify-content:center;">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Yes, Delete</button>
+      <a href="{% url 'list' %}" class="btn btn-ghost">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

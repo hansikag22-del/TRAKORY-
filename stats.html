@@ -1,0 +1,237 @@
+{% extends 'tracker/base.html' %}
+{% block title %}My Stats — TRAKORY{% endblock %}
+{% block extra_css %}
+<style>
+  .stats-wrap { padding: 2rem 1.5rem; max-width: 1100px; margin: 0 auto; }
+  .page-title { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; margin-bottom: 0.3rem; }
+  .page-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+  .hero-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .hero-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.2rem; position: relative; overflow: hidden;
+  }
+  .hero-card::after {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent-color, var(--accent));
+  }
+  .hero-num { font-family: 'Syne', sans-serif; font-size: 2.2rem; font-weight: 800; line-height: 1; }
+  .hero-label { color: var(--muted); font-size: 0.78rem; margin-top: 0.4rem; text-transform: uppercase; letter-spacing: 1px; }
+  .hero-icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+  @media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.4rem;
+  }
+  .chart-title { font-family: 'Syne', sans-serif; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 1.2rem; }
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .bar-label { font-size: 0.82rem; color: var(--text); min-width: 90px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-wrap { flex: 1; height: 8px; background: var(--surface2); border-radius: 10px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 10px; transition: width 1s ease; }
+  .bar-count { font-size: 0.78rem; color: var(--muted); min-width: 24px; text-align: right; }
+  .donut-wrap { display: flex; align-items: center; gap: 1.5rem; }
+  .donut-legend { flex: 1; }
+  .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.82rem; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .rating-bars { display: flex; align-items: flex-end; gap: 8px; height: 80px; padding-top: 8px; }
+  .rating-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .rating-bar-v { width: 100%; border-radius: 4px 4px 0 0; background: var(--accent); transition: height 1s ease; min-height: 4px; }
+  .rating-star { font-size: 0.7rem; color: var(--muted); }
+  .rating-count { font-size: 0.7rem; color: var(--muted); }
+  .monthly-bars { display: flex; align-items: flex-end; gap: 8px; height: 80px; }
+  .month-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .month-bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--accent3); transition: height 1s ease; min-height: 4px; }
+  .month-label { font-size: 0.68rem; color: var(--muted); }
+  .top-list { list-style: none; }
+  .top-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .top-item:last-child { border-bottom: none; }
+  .top-rank { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem; color: var(--muted); min-width: 24px; }
+  .top-title { flex: 1; font-size: 0.88rem; font-weight: 500; }
+  .top-rating { color: #f5c518; font-size: 0.82rem; }
+  .empty-state { text-align: center; padding: 4rem; color: var(--muted); }
+  .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+  .loading { text-align: center; padding: 3rem; color: var(--muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="stats-wrap">
+  <div class="page-title">My Statistics</div>
+  <div class="page-sub">Your complete content journey at a glance</div>
+  <div id="statsContent"><div class="loading">Loading your stats...</div></div>
+</div>
+
+<script>
+const COLORS = ['#7c6af7','#f76a6a','#6af7c4','#f7c46a','#6aaff7','#f76ab0','#a8f76a','#f7a86a'];
+const STATUS_COLORS = {
+  'Completed': '#6af7c4', 'Watching': '#7c6af7', 'Reading': '#7c6af7',
+  'Playing': '#7c6af7', 'Plan to Watch': '#f7c46a', 'Plan to Read': '#f7c46a',
+  'Plan to Play': '#f7c46a', 'On Hold': '#f7a86a', 'Dropped': '#f76a6a',
+};
+
+async function loadStats() {
+  const res = await fetch('/api/stats/');
+  const d = await res.json();
+  const el = document.getElementById('statsContent');
+
+  if (d.empty) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📊</div>
+      <p style="font-size:1.1rem;color:var(--text);margin-bottom:1rem">No data yet!</p>
+      <p style="margin-bottom:1.5rem">Add some items to your list to see your statistics.</p>
+      <a href="/add/" class="btn btn-primary">+ Add Content</a>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="hero-grid">
+      <div class="hero-card" style="--accent-color:#7c6af7">
+        <div class="hero-icon">📚</div>
+        <div class="hero-num">${d.total}</div>
+        <div class="hero-label">Total Tracked</div>
+      </div>
+      <div class="hero-card" style="--accent-color:#6af7c4">
+        <div class="hero-icon">✅</div>
+        <div class="hero-num">${d.completed}</div>
+        <div class="hero-label">Completed</div>
+      </div>
+      <div class="hero-card" style="--accent-color:#f5c518">
+        <div class="hero-icon">⭐</div>
+        <div class="hero-num">${d.avg_rating || '—'}</div>
+        <div class="hero-label">Avg Rating</div>
+      </div>
+      <div class="hero-card" style="--accent-color:#f76a6a">
+        <div class="hero-icon">⏱</div>
+        <div class="hero-num">${d.hours_watched}h</div>
+        <div class="hero-label">Hours Watched</div>
+      </div>
+      <div class="hero-card" style="--accent-color:#6aaff7">
+        <div class="hero-icon">🎯</div>
+        <div class="hero-num">${d.completion_rate}%</div>
+        <div class="hero-label">Completion Rate</div>
+      </div>
+      <div class="hero-card" style="--accent-color:#c46af7">
+        <div class="hero-icon">🎭</div>
+        <div class="hero-num" style="font-size:1.2rem">${d.fav_genre}</div>
+        <div class="hero-label">Top Genre</div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card" id="catChart"></div>
+      <div class="chart-card" id="statusChart"></div>
+      <div class="chart-card" id="genreChart"></div>
+      <div class="chart-card" id="ratingChart"></div>
+      <div class="chart-card" id="monthlyChart"></div>
+      <div class="chart-card" id="topRated"></div>
+    </div>
+  `;
+
+  renderCatChart(d.cat_data);
+  renderStatusChart(d.status_data);
+  renderGenreChart(d.genre_data);
+  renderRatingChart(d.rating_dist);
+  renderMonthlyChart(d.monthly);
+  renderTopRated(d.top_rated);
+}
+
+function renderCatChart(data) {
+  const max = Math.max(...Object.values(data));
+  const catColors = {'Movies':'#7c6af7','Series':'#6aaff7','Anime':'#f76a6a','Books':'#6af7c4','Games':'#f7c46a'};
+  document.getElementById('catChart').innerHTML = `
+    <div class="chart-title">By Category</div>
+    ${Object.entries(data).map(([k,v]) => `
+      <div class="bar-row">
+        <div class="bar-label">${k}</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${(v/max)*100}%;background:${catColors[k]||'var(--accent)'}"></div></div>
+        <div class="bar-count">${v}</div>
+      </div>`).join('')}`;
+}
+
+function renderStatusChart(data) {
+  const total = Object.values(data).reduce((a,b) => a+b, 0);
+  const entries = Object.entries(data);
+  let angle = 0;
+  const size = 80;
+  const cx = size/2, cy = size/2, r = 32, ir = 18;
+  let paths = '';
+  const legend = entries.map(([k,v], i) => {
+    const pct = v/total;
+    const a1 = angle, a2 = angle + pct * 2 * Math.PI;
+    const x1 = cx + r*Math.sin(a1), y1 = cy - r*Math.cos(a1);
+    const x2 = cx + r*Math.sin(a2), y2 = cy - r*Math.cos(a2);
+    const ix1 = cx + ir*Math.sin(a1), iy1 = cy - ir*Math.cos(a1);
+    const ix2 = cx + ir*Math.sin(a2), iy2 = cy - ir*Math.cos(a2);
+    const lg = pct > 0.5 ? 1 : 0;
+    const color = STATUS_COLORS[k] || COLORS[i % COLORS.length];
+    paths += `<path d="M${ix1},${iy1} L${x1},${y1} A${r},${r} 0 ${lg} 1 ${x2},${y2} L${ix2},${iy2} A${ir},${ir} 0 ${lg} 0 ${ix1},${iy1}" fill="${color}"/>`;
+    angle = a2;
+    return `<div class="legend-item"><div class="legend-dot" style="background:${color}"></div><span>${k}: ${v}</span></div>`;
+  });
+  document.getElementById('statusChart').innerHTML = `
+    <div class="chart-title">By Status</div>
+    <div class="donut-wrap">
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex-shrink:0">${paths}</svg>
+      <div class="donut-legend">${legend.join('')}</div>
+    </div>`;
+}
+
+function renderGenreChart(data) {
+  const max = Math.max(...Object.values(data));
+  document.getElementById('genreChart').innerHTML = `
+    <div class="chart-title">Top Genres</div>
+    ${Object.entries(data).map(([k,v], i) => `
+      <div class="bar-row">
+        <div class="bar-label">${k}</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${(v/max)*100}%;background:${COLORS[i%COLORS.length]}"></div></div>
+        <div class="bar-count">${v}</div>
+      </div>`).join('')}`;
+}
+
+function renderRatingChart(data) {
+  const max = Math.max(...Object.values(data), 1);
+  document.getElementById('ratingChart').innerHTML = `
+    <div class="chart-title">Rating Distribution</div>
+    <div class="rating-bars">
+      ${Object.entries(data).map(([star, count]) => `
+        <div class="rating-col">
+          <div class="rating-count">${count}</div>
+          <div class="rating-bar-v" style="height:${Math.max((count/max)*60, count>0?8:4)}px;background:${count>0?'#f5c518':'var(--surface2)'}"></div>
+          <div class="rating-star">${'★'.repeat(parseInt(star))}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderMonthlyChart(data) {
+  const max = Math.max(...Object.values(data), 1);
+  document.getElementById('monthlyChart').innerHTML = `
+    <div class="chart-title">Monthly Activity</div>
+    <div class="monthly-bars">
+      ${Object.entries(data).map(([month, count]) => `
+        <div class="month-col">
+          <div class="rating-count" style="font-size:0.68rem;color:var(--muted)">${count}</div>
+          <div class="month-bar" style="height:${Math.max((count/max)*60, count>0?8:4)}px"></div>
+          <div class="month-label">${month}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderTopRated(items) {
+  const catEmoji = {movie:'🎬', series:'📺', anime:'⛩', book:'📚', game:'🎮'};
+  document.getElementById('topRated').innerHTML = `
+    <div class="chart-title">Top Rated</div>
+    <ul class="top-list">
+      ${items.map((item, i) => `
+        <li class="top-item">
+          <div class="top-rank">#${i+1}</div>
+          <div>${catEmoji[item.category]||'📌'}</div>
+          <div class="top-title">${item.title}</div>
+          <div class="top-rating">${'★'.repeat(item.rating)}${'☆'.repeat(5-item.rating)}</div>
+        </li>`).join('')}
+    </ul>`;
+}
+
+loadStats();
+</script>
+{% endblock %}
