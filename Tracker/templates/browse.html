@@ -1,0 +1,398 @@
+{% extends 'tracker/base.html' %}
+{% block title %}Browse — TRAKORY{% endblock %}
+{% block extra_css %}
+<style>
+  :root {
+    --card-w: 140px;
+    --card-h: 196px;
+  }
+  .browse-wrap { background: var(--bg); min-height: 100vh; padding-bottom: 3rem; }
+  .browse-hero {
+    padding: 1.5rem 1.5rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .browse-hero h1 { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem; }
+  .browse-hero h1 span { color: var(--accent2); }
+  .tab-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; }
+  .tab-btn {
+    padding: 5px 16px; border-radius: 20px; font-size: 0.82rem;
+    cursor: pointer; border: 1px solid var(--border);
+    background: transparent; color: var(--muted);
+    font-family: 'DM Sans', sans-serif; transition: all .2s;
+  }
+  .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .search-row { display: flex; gap: 8px; }
+  .search-input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 0.5rem 0.9rem; border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.88rem; outline: none;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-btn {
+    padding: 0.5rem 1rem; background: var(--accent); color: #fff;
+    border: none; border-radius: 8px; cursor: pointer; font-size: 0.88rem;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .recs-section {
+    margin: 1.5rem 1.5rem 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.2rem;
+  }
+  .recs-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .recs-title { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; }
+  .recs-badge {
+    background: #1a1a3a; color: var(--accent); border: 1px solid #2a2a5a;
+    padding: 3px 10px; border-radius: 12px; font-size: 0.75rem;
+  }
+  .recs-reason { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.8rem; }
+  .section-block { padding: 1.2rem 0 0.5rem; }
+  .section-label {
+    font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+    padding: 0 1.5rem; margin-bottom: 0.7rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .card-row {
+    display: flex; gap: 10px; padding: 0 1.5rem;
+    overflow-x: auto; padding-bottom: 8px; scrollbar-width: none;
+  }
+  .card-row::-webkit-scrollbar { display: none; }
+  .card {
+    flex: 0 0 var(--card-w); background: var(--card-bg);
+    border-radius: 8px; overflow: hidden; cursor: pointer;
+    border: 1px solid var(--border); position: relative;
+    transition: transform .25s, border-color .25s, z-index 0s;
+  }
+  .card:hover { transform: scale(1.08); border-color: var(--accent); z-index: 20; }
+  .card:hover .hov { opacity: 1; }
+  .poster {
+    width: 100%; height: var(--card-h); object-fit: cover;
+    display: block; background: var(--surface2);
+  }
+  .poster-ph {
+    width: 100%; height: var(--card-h); display: flex;
+    align-items: center; justify-content: center;
+    background: var(--surface2); font-size: 2rem; color: var(--muted);
+  }
+  .card-foot { padding: 6px 8px 8px; }
+  .card-title { font-size: 0.78rem; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+  .card-stars { color: #f5c518; font-size: 0.68rem; margin-top: 1px; }
+  .hov {
+    position: absolute; inset: 0; background: rgba(8,8,16,.92);
+    opacity: 0; transition: opacity .2s;
+    display: flex; flex-direction: column;
+    justify-content: flex-end; padding: 10px 9px;
+  }
+  .hov-title { font-size: 0.78rem; font-weight: 500; color: #fff; margin-bottom: 3px; }
+  .hov-desc {
+    font-size: 0.68rem; color: #aaa; line-height: 1.4; margin-bottom: 7px;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .hov-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .hbtn {
+    padding: 3px 7px; border-radius: 4px; font-size: 0.68rem;
+    cursor: pointer; border: none; font-weight: 500;
+    font-family: 'DM Sans', sans-serif; transition: opacity .15s;
+  }
+  .hbtn:hover { opacity: 0.8; }
+  .hbtn-done { background: #1D9E75; color: #fff; }
+  .hbtn-watch { background: var(--accent); color: #fff; }
+  .hbtn-fav { background: var(--accent2); color: #fff; }
+  .hbtn-plan { background: #333; color: #ccc; }
+  .status-badge {
+    position: absolute; top: 5px; left: 5px;
+    padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;
+  }
+  .sb-done { background: #1D9E75; color: #fff; }
+  .sb-watch { background: var(--accent); color: #fff; }
+  .sb-fav { background: var(--accent2); color: #fff; }
+  .sb-plan { background: #333; color: #ccc; }
+  .skel {
+    flex: 0 0 var(--card-w); height: calc(var(--card-h) + 52px);
+    background: var(--surface2); border-radius: 8px;
+    animation: skpulse 1.4s ease-in-out infinite;
+  }
+  @keyframes skpulse { 0%,100%{opacity:.4}50%{opacity:.9} }
+  .toast-msg {
+    position: fixed; bottom: 24px; right: 24px; z-index: 999;
+    background: var(--accent); color: #fff;
+    padding: 8px 16px; border-radius: 8px; font-size: 0.85rem;
+    opacity: 0; transition: opacity .3s; pointer-events: none;
+  }
+  .toast-msg.show { opacity: 1; }
+  .empty-recs { text-align: center; padding: 1.5rem; color: var(--muted); font-size: 0.88rem; }
+  .filter-row { display: flex; gap: 6px; padding: 1rem 1.5rem 0; flex-wrap: wrap; }
+  .fbtn {
+    padding: 4px 12px; border-radius: 12px; font-size: 0.78rem;
+    cursor: pointer; border: 1px solid var(--border);
+    background: transparent; color: var(--muted);
+    font-family: 'DM Sans', sans-serif; transition: all .2s;
+  }
+  .fbtn.active { border-color: var(--accent); color: var(--accent); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="browse-wrap">
+  <div class="browse-hero">
+    <h1>Browse <span>&amp;</span> Discover</h1>
+    <div class="tab-row" id="tabRow">
+      <button class="tab-btn active" data-tab="movies" onclick="switchTab(this)">🎬 Movies</button>
+      <button class="tab-btn" data-tab="series" onclick="switchTab(this)">📺 Series</button>
+      <button class="tab-btn" data-tab="anime" onclick="switchTab(this)">⛩ Anime</button>
+      <button class="tab-btn" data-tab="books" onclick="switchTab(this)">📚 Books</button>
+    </div>
+    <div class="search-row">
+      <input class="search-input" id="searchInput" type="text" placeholder="Search movies, series, anime, books...">
+      <button class="search-btn" onclick="doSearch()">Search</button>
+    </div>
+  </div>
+
+  <div id="recsSection" class="recs-section" style="display:none">
+    <div class="recs-header">
+      <div class="recs-title">✨ Recommended For You</div>
+      <div class="recs-badge">AI Picks</div>
+    </div>
+    <div class="recs-reason" id="recsReason"></div>
+    <div class="card-row" id="recsRow"></div>
+  </div>
+
+  <div class="filter-row">
+    <span style="font-size:0.78rem;color:var(--muted);line-height:24px">My Status:</span>
+    <button class="fbtn active" onclick="setFilter('all',this)">All</button>
+    <button class="fbtn" onclick="setFilter('done',this)">Completed</button>
+    <button class="fbtn" onclick="setFilter('watch',this)">Watching</button>
+    <button class="fbtn" onclick="setFilter('fav',this)">Favourites</button>
+    <button class="fbtn" onclick="setFilter('plan',this)">Planned</button>
+  </div>
+
+  <div id="browseContent"></div>
+</div>
+<div class="toast-msg" id="toast"></div>
+
+<script>
+const CSRF = '{{ csrf_token }}';
+const userStatus = {};
+const userFavs = new Set();
+let currentTab = 'movies';
+let currentFilter = 'all';
+let searchMode = false;
+
+const SECTION_COLORS = ['#7c6af7','#f76a6a','#6af7c4','#f7c46a','#6aaff7'];
+
+function getCookie(name) {
+  let val = null;
+  document.cookie.split(';').forEach(c => {
+    c = c.trim();
+    if (c.startsWith(name + '=')) val = decodeURIComponent(c.split('=')[1]);
+  });
+  return val;
+}
+
+function stars(r) {
+  if (!r) return '';
+  const full = Math.round(r / 2);
+  return '★'.repeat(full) + '☆'.repeat(5 - full);
+}
+
+function getBadge(id) {
+  if (userFavs.has(id)) return '<span class="status-badge sb-fav">Fav</span>';
+  const s = userStatus[id];
+  if (s === 'done') return '<span class="status-badge sb-done">Done</span>';
+  if (s === 'watch') return '<span class="status-badge sb-watch">Watching</span>';
+  if (s === 'plan') return '<span class="status-badge sb-plan">Planned</span>';
+  return '';
+}
+
+function matchFilter(id) {
+  if (currentFilter === 'all') return true;
+  if (currentFilter === 'fav') return userFavs.has(id);
+  return userStatus[id] === currentFilter;
+}
+
+function makeCard(item) {
+  const img = item.img
+    ? `<img class="poster" src="${item.img}" alt="${item.title}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+    : '';
+  const ph = `<div class="poster-ph" style="${item.img ? 'display:none' : ''}">🎬</div>`;
+  const rating = item.rating ? `<div class="card-stars">${stars(item.rating)} ${item.rating}</div>` : '';
+  const esc = s => (s||'').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+  return `<div class="card" id="card-${item.id}">
+    ${img}${ph}
+    <div class="card-foot">
+      <div class="card-title">${item.title}</div>
+      <div class="card-sub">${item.year || ''} · ${item.genre || ''}</div>
+      ${rating}
+    </div>
+    ${getBadge(item.id)}
+    <div class="hov">
+      <div class="hov-title">${item.title}</div>
+      <div class="hov-desc">${esc(item.overview)}</div>
+      <div class="hov-btns">
+        <button class="hbtn hbtn-done" onclick="markStatus('${item.id}','done','${esc(item.title)}','${item.type}','${esc(item.genre)}','${esc(item.overview)}')">Done</button>
+        <button class="hbtn hbtn-watch" onclick="markStatus('${item.id}','watch','${esc(item.title)}','${item.type}','${esc(item.genre)}','${esc(item.overview)}')">Watching</button>
+        <button class="hbtn hbtn-fav" onclick="markFav('${item.id}','${esc(item.title)}','${item.type}','${esc(item.genre)}','${esc(item.overview)}')">Fav</button>
+        <button class="hbtn hbtn-plan" onclick="markStatus('${item.id}','plan','${esc(item.title)}','${item.type}','${esc(item.genre)}','${esc(item.overview)}')">Plan</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function showSkeletons(containerId, count=8) {
+  document.getElementById(containerId).innerHTML =
+    `<div class="card-row">${Array(count).fill('<div class="skel"></div>').join('')}</div>`;
+}
+
+async function markStatus(id, status, title, type, genre, overview) {
+  userStatus[id] = status;
+  const statusMap = {done:'Completed', watch:'Watching', plan:'Plan to Watch'};
+  await addToList(title, type, statusMap[status], genre, overview);
+  reRenderCards();
+  showToast(`"${title}" marked as ${statusMap[status]}!`);
+}
+
+async function markFav(id, title, type, genre, overview) {
+  userFavs.has(id) ? userFavs.delete(id) : userFavs.add(id);
+  if (!userStatus[id]) userStatus[id] = 'fav';
+  await addToList(title, type, 'Watching', genre, overview);
+  reRenderCards();
+  showToast(userFavs.has(id) ? `Added "${title}" to Favourites!` : `Removed from Favourites`);
+}
+
+async function addToList(title, type, status, genre, overview) {
+  try {
+    await fetch('/api/add-to-list/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+      body: JSON.stringify({title, type, status, genre, overview})
+    });
+  } catch(e) {}
+}
+
+function reRenderCards() {
+  document.querySelectorAll('.card').forEach(card => {
+    const id = card.id.replace('card-', '');
+    const badgeEl = card.querySelector('.status-badge');
+    if (badgeEl) badgeEl.remove();
+    const b = getBadge(id);
+    if (b) card.insertAdjacentHTML('beforeend', b);
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  if (searchMode) return;
+  loadBrowse();
+}
+
+function switchTab(el) {
+  currentTab = el.dataset.tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  searchMode = false;
+  document.getElementById('searchInput').value = '';
+  loadBrowse();
+}
+
+function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) { searchMode = false; loadBrowse(); return; }
+  searchMode = true;
+  loadSearch(q);
+}
+
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+
+async function loadBrowse() {
+  const container = document.getElementById('browseContent');
+  container.innerHTML = '<div style="padding:2rem 1.5rem;color:var(--muted);font-size:0.88rem">Loading...</div>';
+  try {
+    const res = await fetch(`/api/browse/?tab=${currentTab}`);
+    const data = await res.json();
+    renderSections(data.sections);
+  } catch(e) {
+    container.innerHTML = '<div style="padding:2rem 1.5rem;color:var(--accent2)">Could not load data. Check your TMDB API key.</div>';
+  }
+}
+
+function renderSections(sections) {
+  const container = document.getElementById('browseContent');
+  let i = 0;
+  let html = '';
+  for (const [label, items] of Object.entries(sections)) {
+    const filtered = currentFilter === 'all' ? items : items.filter(it => matchFilter(it.id));
+    if (filtered.length === 0) { i++; continue; }
+    const color = SECTION_COLORS[i % SECTION_COLORS.length];
+    html += `<div class="section-block">
+      <div class="section-label"><span class="section-dot" style="background:${color}"></span>${label}</div>
+      <div class="card-row">${filtered.map(makeCard).join('')}</div>
+    </div>`;
+    i++;
+  }
+  container.innerHTML = html || '<div style="padding:2rem 1.5rem;color:var(--muted);font-size:0.88rem">No items match this filter yet. Mark some items first!</div>';
+}
+
+async function loadSearch(q) {
+  const container = document.getElementById('browseContent');
+  container.innerHTML = '<div style="padding:2rem 1.5rem;color:var(--muted);font-size:0.88rem">Searching...</div>';
+  try {
+    const res = await fetch(`/api/search/?tab=${currentTab}&q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    const items = data.results || [];
+    if (!items.length) {
+      container.innerHTML = '<div style="padding:2rem 1.5rem;color:var(--muted)">No results found.</div>';
+      return;
+    }
+    container.innerHTML = `<div class="section-block">
+      <div class="section-label"><span class="section-dot" style="background:var(--accent)"></span>Search results for "${q}"</div>
+      <div class="card-row">${items.map(makeCard).join('')}</div>
+    </div>`;
+  } catch(e) {
+    container.innerHTML = '<div style="padding:2rem 1.5rem;color:var(--accent2)">Search failed.</div>';
+  }
+}
+
+async function loadRecommendations() {
+  try {
+    const res = await fetch('/api/recommendations/');
+    const data = await res.json();
+    const sec = document.getElementById('recsSection');
+    const row = document.getElementById('recsRow');
+    const reason = document.getElementById('recsReason');
+
+    if (!data.recommendations || data.recommendations.length === 0) {
+      sec.style.display = 'none';
+      return;
+    }
+
+    sec.style.display = 'block';
+    if (data.based_on && data.based_on.length) {
+      reason.textContent = `Based on your love for: ${data.based_on.join(', ')} · Genre: ${data.genre || 'Mixed'}`;
+    }
+    row.innerHTML = data.recommendations.map(makeCard).join('');
+  } catch(e) {
+    document.getElementById('recsSection').style.display = 'none';
+  }
+}
+
+loadBrowse();
+loadRecommendations();
+</script>
+{% endblock %}

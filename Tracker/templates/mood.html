@@ -1,0 +1,188 @@
+{% extends 'tracker/base.html' %}
+{% block title %}Mood Pick — TRAKORY{% endblock %}
+{% block extra_css %}
+<style>
+  .mood-wrap { max-width: 1000px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .page-title { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; margin-bottom: 0.3rem; }
+  .page-sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+  .mood-question { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; margin-bottom: 1.2rem; }
+  .mood-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 2rem; }
+  .mood-btn {
+    background: var(--surface); border: 2px solid var(--border);
+    border-radius: 12px; padding: 1rem 0.8rem; cursor: pointer;
+    text-align: center; transition: all .2s; font-family: 'DM Sans', sans-serif;
+  }
+  .mood-btn:hover { transform: translateY(-3px); }
+  .mood-btn.active { border-width: 2px; }
+  .mood-emoji { font-size: 2rem; margin-bottom: 0.4rem; }
+  .mood-label { font-size: 0.8rem; font-weight: 500; color: var(--text); }
+  .cat-row { display: flex; gap: 8px; margin-bottom: 2rem; flex-wrap: wrap; }
+  .cat-btn {
+    padding: 6px 16px; border-radius: 20px; font-size: 0.82rem;
+    cursor: pointer; border: 1px solid var(--border);
+    background: transparent; color: var(--muted);
+    font-family: 'DM Sans', sans-serif; transition: all .2s;
+  }
+  .cat-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .results-section { margin-top: 1rem; }
+  .results-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+  .mcard {
+    background: var(--card-bg); border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--border); cursor: pointer;
+    transition: transform .25s, border-color .25s; position: relative;
+  }
+  .mcard:hover { transform: scale(1.05); border-color: var(--accent); }
+  .mcard:hover .mhov { opacity: 1; }
+  .mposter { width: 100%; height: 180px; object-fit: cover; display: block; background: var(--surface2); }
+  .mposter-ph { width: 100%; height: 180px; display: flex; align-items: center; justify-content: center; background: var(--surface2); font-size: 2.5rem; }
+  .mfoot { padding: 7px 8px 9px; }
+  .mcard-title { font-size: 0.78rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mcard-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+  .mcard-stars { color: #f5c518; font-size: 0.68rem; }
+  .mhov {
+    position: absolute; inset: 0; background: rgba(8,8,16,.9);
+    opacity: 0; transition: opacity .2s;
+    display: flex; flex-direction: column; justify-content: flex-end; padding: 10px;
+  }
+  .mhov-title { font-size: 0.75rem; font-weight: 500; color: #fff; margin-bottom: 4px; }
+  .mhov-desc { font-size: 0.67rem; color: #aaa; line-height: 1.4; margin-bottom: 8px;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .mhov-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .mhbtn { padding: 3px 7px; border-radius: 4px; font-size: 0.67rem; cursor: pointer; border: none; font-weight: 500; font-family: 'DM Sans', sans-serif; }
+  .mhbtn-done { background: #1D9E75; color: #fff; }
+  .mhbtn-plan { background: #333; color: #ccc; }
+  .loading { text-align: center; padding: 3rem; color: var(--muted); }
+  .find-btn {
+    padding: 0.7rem 2rem; background: var(--accent); color: #fff;
+    border: none; border-radius: 10px; font-size: 1rem; font-weight: 500;
+    font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all .2s;
+    margin-bottom: 2rem; display: block;
+  }
+  .find-btn:hover { transform: translateY(-2px); background: #6b59e6; }
+  .toast-msg { position: fixed; bottom: 24px; right: 24px; z-index: 999; background: var(--accent); color: #fff; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  .toast-msg.show { opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mood-wrap">
+  <div class="page-title">What's Your Mood?</div>
+  <div class="page-sub">Tell us how you feel and we'll find the perfect watch for you</div>
+
+  <div class="mood-question">I want to watch something...</div>
+  <div class="mood-grid" id="moodGrid">
+    {% for key, mood in moods.items %}
+    <div class="mood-btn" data-mood="{{ key }}" style="--mood-color:{{ mood.color }}" onclick="selectMood('{{ key }}', '{{ mood.color }}')">
+      <div class="mood-emoji">{{ mood.emoji }}</div>
+      <div class="mood-label">{{ mood.label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="mood-question">Category:</div>
+  <div class="cat-row">
+    <button class="cat-btn active" data-cat="movie" onclick="selectCat('movie', this)">🎬 Movies</button>
+    <button class="cat-btn" data-cat="series" onclick="selectCat('series', this)">📺 Series</button>
+    <button class="cat-btn" data-cat="anime" onclick="selectCat('anime', this)">⛩ Anime</button>
+  </div>
+
+  <button class="find-btn" onclick="findMood()" id="findBtn">✨ Find For Me</button>
+
+  <div class="results-section" id="results"></div>
+</div>
+<div class="toast-msg" id="toast"></div>
+
+<script>
+const CSRF = '{{ csrf_token }}';
+let selectedMood = null;
+let selectedCat = 'movie';
+
+function selectMood(mood, color) {
+  selectedMood = mood;
+  document.querySelectorAll('.mood-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.borderColor = 'var(--border)';
+    b.style.background = 'var(--surface)';
+  });
+  const btn = document.querySelector(`[data-mood="${mood}"]`);
+  btn.classList.add('active');
+  btn.style.borderColor = color;
+  btn.style.background = color + '22';
+}
+
+function selectCat(cat, el) {
+  selectedCat = cat;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function stars(r) {
+  if (!r) return '';
+  const f = Math.round(r/2);
+  return '★'.repeat(f) + '☆'.repeat(5-f);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+async function addToList(title, type, status, genre, overview) {
+  await fetch('/api/add-to-list/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+    body: JSON.stringify({title, type, status, genre, overview})
+  });
+}
+
+async function findMood() {
+  if (!selectedMood) {
+    showToast('Please select a mood first!');
+    return;
+  }
+  const res = document.getElementById('results');
+  res.innerHTML = '<div class="loading">Finding perfect picks for your mood...</div>';
+
+  const data = await fetch(`/api/mood/?mood=${selectedMood}&category=${selectedCat}`).then(r => r.json());
+
+  if (!data.results || data.results.length === 0) {
+    res.innerHTML = '<div class="loading">No results found. Try a different mood or category!</div>';
+    return;
+  }
+
+  const mi = data.mood_info;
+  res.innerHTML = `
+    <div class="results-title">
+      <span style="font-size:1.4rem">${mi.emoji}</span>
+      <span>${mi.label} — Just for You</span>
+    </div>
+    <div class="card-grid">
+      ${data.results.map(item => {
+        const esc = s => (s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+        return `<div class="mcard">
+          ${item.img
+            ? `<img class="mposter" src="${item.img}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+            : ''}
+          <div class="mposter-ph" style="${item.img?'display:none':''}">🎬</div>
+          <div class="mfoot">
+            <div class="mcard-title">${item.title}</div>
+            <div class="mcard-sub">${item.year||''} · ${item.genre||''}</div>
+            <div class="mcard-stars">${stars(item.rating)} ${item.rating||''}</div>
+          </div>
+          <div class="mhov">
+            <div class="mhov-title">${item.title}</div>
+            <div class="mhov-desc">${esc(item.overview)}</div>
+            <div class="mhov-btns">
+              <button class="mhbtn mhbtn-done" onclick="addToList('${esc(item.title)}','${item.type}','Completed','${esc(item.genre)}','${esc(item.overview)}');showToast('Added!')">Done</button>
+              <button class="mhbtn mhbtn-plan" onclick="addToList('${esc(item.title)}','${item.type}','Plan to Watch','${esc(item.genre)}','${esc(item.overview)}');showToast('Added to plan!')">Plan</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends 'tracker/base.html' %}
+{% block title %}Register — TRAKORY{% endblock %}
+{% block extra_css %}
+<style>
+  .auth-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at 40% 60%, #0d2a1e 0%, var(--bg) 60%);
+  }
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 440px;
+  }
+  .auth-title { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; margin-bottom: 0.3rem; color: var(--accent3); letter-spacing: 2px; }
+  .auth-subtitle { color: var(--muted); margin-bottom: 2rem; font-size: 0.9rem; }
+  .auth-footer { margin-top: 1.5rem; text-align: center; font-size: 0.88rem; color: var(--muted); }
+  .auth-footer a { color: var(--accent); text-decoration: none; }
+  .errorlist { list-style: none; color: var(--accent2); font-size: 0.82rem; margin-top: 0.3rem; padding: 0; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-title">JOIN TRAKORY</div>
+    <div class="auth-subtitle">Create your tracking universe.</div>
+    <form method="POST">
+      {% csrf_token %}
+      {% for field in form %}
+      <div class="form-group">
+        <label>{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:0.75rem;background:var(--accent3);color:#0d0d0f;">Create Account</button>
+    </form>
+    <div class="auth-footer">Have an account? <a href="{% url 'login' %}">Log in →</a></div>
+  </div>
+</div>
+{% endblock %}
